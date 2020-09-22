@@ -103,6 +103,7 @@ def parse_args():
     parser.add_argument('-e', '--engines', help='Specify a comma-separated list of search engines')
     parser.add_argument('-o', '--output', help='Save the results to text file')
     parser.add_argument('-n', '--no-color', help='Output without color', default=False, action='store_true')
+    parser.add_argument('-r', '--resolve', help='Resolve found subdomains to IP addresses', default=False, nargs='?')
     return parser.parse_args()
 
 
@@ -611,7 +612,7 @@ class DNSdumpster(enumratorBaseThreaded):
         Resolver.nameservers = ['8.8.8.8', '8.8.4.4']
         self.lock.acquire()
         try:
-            ip = Resolver.query(host, 'A')[0].to_text()
+            ip = Resolver.resolve(host, 'A')[0].to_text() 
             if ip:
                 if self.verbose:
                     self.print_("%s%s: %s%s" % (R, self.engine_name, W, host))
@@ -880,8 +881,19 @@ class portscan():
             t = threading.Thread(target=self.port_scan, args=(subdomain, self.ports))
             t.start()
 
+def resolveIP(subdomain):
+    Resolver = dns.resolver.Resolver()
+    Resolver.nameservers = ['8.8.8.8', '8.8.4.4']
+    ips = {}
+    try:
+        resolved = Resolver.resolve(subdomain, 'A')
+        ips = {ip.to_text() for ip in resolved}
+    except:
+        pass
+    return ips
 
-def main(domain, threads, savefile, ports, silent, verbose, enable_bruteforce, engines):
+
+def main(domain, threads, savefile, ports, silent, verbose, enable_bruteforce, engines, resolve):
     bruteforce_list = set()
     search_list = set()
 
@@ -982,7 +994,11 @@ def main(domain, threads, savefile, ports, silent, verbose, enable_bruteforce, e
 
         elif not silent:
             for subdomain in subdomains:
-                print(G + subdomain + W)
+                if resolve:
+                    ips = resolveIP(subdomain)
+                    print(G + subdomain + " " + R + ", ".join(ips) + W)
+                else:
+                    print(G + subdomain + W)
     return subdomains
 
 
@@ -995,12 +1011,13 @@ def interactive():
     enable_bruteforce = args.bruteforce
     verbose = args.verbose
     engines = args.engines
+    resolve = True if not args.resolve else False
     if verbose or verbose is None:
         verbose = True
     if args.no_color:
         no_color()
     banner()
-    res = main(domain, threads, savefile, ports, silent=False, verbose=verbose, enable_bruteforce=enable_bruteforce, engines=engines)
+    res = main(domain, threads, savefile, ports, silent=False, verbose=verbose, enable_bruteforce=enable_bruteforce, engines=engines, resolve=resolve)
 
 if __name__ == "__main__":
     interactive()
