@@ -1011,7 +1011,9 @@ def interactive():
     enable_bruteforce = args.bruteforce
     verbose = args.verbose
     engines = args.engines
-    resolve = True if not args.resolve else False
+    resolve = args.resolve
+    if resolve or resolve is None:
+        resolve = True
     if verbose or verbose is None:
         verbose = True
     if args.no_color:
